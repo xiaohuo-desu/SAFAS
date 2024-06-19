@@ -2,16 +2,12 @@ from facenet_pytorch import MTCNN, InceptionResnetV1
 import cv2
 from PIL import Image
 import numpy as np
-from matplotlib import pyplot as plt
-from matplotlib.patches import Rectangle
 import math
 from utils.rotate_crop import crop_rotated_rectangle, inside_rect, vis_rotcrop
-from ylib.scipy_misc import imread, imsave
+from imageio import imread, imsave
 import torchvision.transforms.functional as tf
 import PIL
-from ylib.scipy_misc import imsave
 import glob, os, pickle
-import torch
 import re
 os.environ['PATH'] += os.pathsep + '/usr/bin/ffprobe'
 
@@ -77,7 +73,10 @@ def proposess_video(video_path, savepath, sample_ratio=5, max=1000):
             box = np.maximum(box, 0)
             points = np.maximum(points, 0)
             cropped = frame[int(box[1]):int(box[3]), int(box[0]):int(box[2])]
-
+            for i in range(len(batch_probs)):
+                if batch_probs[i] > prob:
+                    print("I found that wrong!"+"\n"+"The prob is not the best one!"+"\n"+"It should be: "+i)
+                    
             imsave(os.path.join(savepath, f'org_{frame_id:04d}.jpg'), frame)
             imsave(os.path.join(savepath, f'crop_{frame_id:04d}.jpg'), Image.fromarray(cropped))
             info_dict = {
@@ -94,7 +93,7 @@ def proposess_imglist(imglist, savepath):
 
     for i, img in enumerate(imglist):
         frame_id = i * 5
-        frame = imread(img)
+        frame = imread(img) 
         # Detect face
         try:
             batch_boxes, batch_probs, batch_points = mtcnn.detect(frame, landmarks=True)
@@ -139,21 +138,28 @@ def run_replay(rootpath):
 
         video_prefix = "_".join(filepath.split("/")[-2:]).split('.')[0]
 
-        if "/real/" in filepath:
-            live_or_spoof = 'live'
-        elif "/attk/" in filepath:
-            live_or_spoof = 'spoof'
-        else:
-            raise RuntimeError(f"What is wrong? {filepath}")
 
         if "/train/" in filepath:
             split = 'train'
+            outpath = os.path.join(outpath, 'train')
         elif "/test/" in filepath:
             split = 'test'
+            outpath = os.path.join(outpath, 'test')
         elif "/devel/" in filepath:
             split = 'dev'
+            outpath = os.path.join(outpath, 'dev')
         else:
             raise RuntimeError(f"What is wrong? {filepath}")
+        
+        if "/real/" in filepath:
+            live_or_spoof = 'live'
+            outpath = os.path.join(outpath, 'real')
+        elif "/attack/" in filepath:
+            live_or_spoof = 'spoof'
+            outpath = os.path.join(outpath, 'attack')
+        else:
+            raise RuntimeError(f"What is wrong? {filepath}")
+
 
         name = f"replay_{split}_{live_or_spoof}_{video_prefix}"
         savepath = os.path.join(outpath, name)
@@ -225,7 +231,7 @@ def run_msu(rootpath):
 def run_oulu(rootpath):
     outpath = os.path.join(rootpath, output_folder)
     os.makedirs(outpath, exist_ok=True)
-
+ 
     file_list = glob.glob(rootpath + "**/*.avi", recursive=True)
     meta_info_list = []
 
@@ -406,7 +412,8 @@ def generate_square_crop(rootpath, face_width=400):
 
 
 if __name__ == '__main__':
-    oulu_info = run_oulu(rootpath="datasets/FAS/OULU-NPU/")
-    msu_info = run_msu(rootpath="datasets/FAS/MSU-MFSD/")
-    casia_info = run_casia(rootpath="datasets/FAS/CASIA_faceAntisp/")
+    #oulu_info = run_oulu(rootpath="datasets/FAS/OULU-NPU/")
+    #msu_info = run_msu(rootpath="datasets/FAS/MSU-MFSD/")
+    #casia_info = run_casia(rootpath="datasets/FAS/CASIA_faceAntisp/")
     replay_info = run_replay(rootpath="datasets/FAS/Replay/")
+
